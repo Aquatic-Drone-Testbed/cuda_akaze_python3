@@ -7,7 +7,7 @@ find_package(CUDA)
 
 # ===================================
 # Set this to yes for python bindings
-set(USE_PYTHON YES)
+set(USE_PYTHON NO)
 
 
 if(USE_PYTHON)
