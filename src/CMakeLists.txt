@@ -1,25 +1,19 @@
+cmake_minimum_required(VERSION 3.14)
+project(cuda_akaze)
 
 # Find external libraries and dependencies
 find_package(OpenCV REQUIRED)
 find_package(Doxygen)
 find_package(CUDA)
-
+find_package(pybind11 REQUIRED)  # <-- Use pybind11 instead of Boost.Python
 
 # ===================================
 # Set this to yes for python bindings
-set(USE_PYTHON NO)
-
+option(USE_PYTHON "Build Python bindings" OFF)
 
 if(USE_PYTHON)
-  find_package(Boost COMPONENTS python)
-  find_package(PythonLibs)
-  if (Boost_python_FOUND AND PYTHONLIBS_FOUND)
-    include_directories(${PYTHON_INCLUDE_DIRS})
-    include_directories(${Boost_INCLUDE_DIR})
-  else()
-    set(USE_PYTHON NO)
-  endif()
-endif(USE_PYTHON)
+  include_directories(${pybind11_INCLUDE_DIRS})
+endif()
 
 if (NOT APPLE)
   find_package(OpenMP)
@@ -27,36 +21,35 @@ endif ()
 
 # ============================================================================ #
 # Compilation flags
-IF(UNIX)
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS} -g -O0  -Wall -Wextra -Wunused-variable -DDEBUG -D_DEBUG")
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -g  -Wall -Wextra -Wunused-variable -DDEBUG -D_DEBUG")
-  LIST(APPEND CUDA_NVCC_FLAGS "-arch=sm_50;-lineinfo;--compiler-options;-O2")
-ENDIF(UNIX)
+if(UNIX)
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS} -g -O0 -Wall -Wextra -Wunused-variable -DDEBUG -D_DEBUG")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -g -Wall -Wextra -Wunused-variable -DDEBUG -D_DEBUG")
+  list(APPEND CUDA_NVCC_FLAGS "-arch=sm_50;-lineinfo;--compiler-options;-O2")
+endif()
 
 if(OPENMP_FOUND)
-  MESSAGE("OpenMP found")
+  message("OpenMP found")
   if(UNIX)
-    SET(CMAKE_C_FLAGS_RELEASE "-O3  -Wall -Wextra -Wunused-variable  -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
-    SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wextra -Wunused-variable -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
-  endif(UNIX)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-  else(OPENMP_FOUND)
-    MESSAGE("OpenMP not found")
-    if(UNIX)
-      if(APPLE)
-	SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS} -O3 -Wall -std=c++11 -Wunused-variable -Wno-unknown-pragmas -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
-	SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -Wall -std=c++11 -stdlib=libc++ -Wno-unknown-pragmas -Wunused-variable -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
-      else()
-	SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS} -O3 -Wall -std=c++0x -Wunused-variable -Wno-unknown-pragmas -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
-	SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -Wall -std=c++0x -Wno-unknown-pragmas -Wunused-variable -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
-      endif()
-    endif(UNIX)
-endif(OPENMP_FOUND)
-
+    set(CMAKE_C_FLAGS_RELEASE "-O3 -Wall -Wextra -Wunused-variable -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wextra -Wunused-variable -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
+  endif()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+else()
+  message("OpenMP not found")
+  if(UNIX)
+    if(APPLE)
+      set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS} -O3 -Wall -std=c++11 -Wunused-variable -Wno-unknown-pragmas -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
+      set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -Wall -std=c++11 -stdlib=libc++ -Wno-unknown-pragmas -Wunused-variable -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
+    else()
+      set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS} -O3 -Wall -std=c++0x -Wunused-variable -Wno-unknown-pragmas -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
+      set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -Wall -std=c++0x -Wno-unknown-pragmas -Wunused-variable -g -fPIC -msse2 -msse3 -msse4 -ffast-math")
+    endif()
+  endif()
+endif()
 
 # ============================================================================ #
-# Create projects
+# Include directories
 include_directories("lib/" ${CUDASIFT})
 
 # AKAZE libraries
@@ -69,31 +62,33 @@ set(AKAZE_SRCS
  
 add_library(AKAZE ${AKAZE_SRCS})
 target_link_libraries(AKAZE ${OpenCV_LIBS})
-if (USE_PYTHON)
-  target_link_libraries(AKAZE ${Boost_PYTHON_LIBRARY} ${PYTHON_LIBRARIES})
-endif()
 
-SET(AKAZE_CUDA_SRCS
+# CUDA sources
+set(AKAZE_CUDA_SRCS
   lib/cudaImage.cu lib/cuda_akaze.cu)
 
-SET(CUDA_SEPARABLE_COMPILATION ON)
+set(CUDA_SEPARABLE_COMPILATION ON)
 
 cuda_add_library(AKAZE_CUDA ${AKAZE_CUDA_SRCS})
 target_link_libraries(AKAZE_CUDA ${OpenCV_LIBS})
 
+# Python bindings with pybind11
+if(USE_PYTHON)
+  pybind11_add_module(cuda_akaze_py cuda_akaze_py.cpp)  # Your Python binding source
+  target_link_libraries(cuda_akaze_py PRIVATE AKAZE AKAZE_CUDA ${OpenCV_LIBS})
+endif()
+
+# Build examples
 if(BUILD_EXAMPLES)
-  # Feature detector program
   add_executable(akaze_features akaze_features.cpp)
   target_link_libraries(akaze_features AKAZE AKAZE_CUDA)
 
-  # Image matching program
   add_executable(akaze_match akaze_match.cpp)
   target_link_libraries(akaze_match AKAZE AKAZE_CUDA)
 
-  # Program that compares AKAZE with ORB and BRISK
   add_executable(akaze_compare akaze_compare.cpp)
   target_link_libraries(akaze_compare AKAZE AKAZE_CUDA)
-endif(BUILD_EXAMPLES)
+endif()
 
 # ============================================================================ #
 # Library installation
@@ -118,4 +113,5 @@ if(DOXYGEN_FOUND)
     ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Generating API documentation with Doxygen" VERBATIM)
-endif(DOXYGEN_FOUND)
+endif()
+

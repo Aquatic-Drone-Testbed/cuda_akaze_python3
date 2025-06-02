@@ -1,0 +1,39 @@
+Building AKAZE_CUDA
+
+This was done entirely from memory so its non comprehensive. Keep this in mind.
+
+This was done on Ubuntu 24.04 so here are some of the system dependencies you need
+
+install with `sudo apt install`
+
+cmake
+gcc-12
+g++-12
+build-essentials
+libopencv-dev
+nvidia-cuda-toolkit
+
+you will also need to pip install
+
+opencv-python
+pybind11
+
+Note: This was done in anaconda so that messing with env variables was reversible
+
+Unpack AKAZE_CUDA and make a build folder and cd into it and run
+
+cmake .. -DBUILD_EXAMPLES=ON -Dpybind11_DIR=/*whatever your path is*/lib/python3.10/site-packages/pybind11/share/cmake/pybind11
+make
+
+Then for setup.py run
+
+python3 setup.py build_ext --inplace
+
+You may need to resolve some paths and stuff. If something is not found, such as the compiled binary executables of AKAZE_CUDA, there are paths that you can edit in the
+python script
+
+you may also need to use 
+
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python3 slam.py
+
+or something of the like to run the CUDA SLAM as it needs a specific C++ library (version `GLIBCXX_3.4.32')
